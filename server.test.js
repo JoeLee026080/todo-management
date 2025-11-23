@@ -3,6 +3,7 @@
  * 測試目標：驗證所有 CRUD 操作的正確性
  * 測試策略：使用 Mock MongoDB 進行隔離測試，不依賴真實資料庫
  */
+import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 // === Mock 物件定義區 ===
 // 注意：必須在 jest.mock() 之前定義，因為 Jest 會提升 mock 宣告
@@ -42,22 +43,24 @@ const mockClientFunctions = {
  * Mock mongodb 模組
  * Jest 會自動將此宣告提升至檔案頂部執行
  */
-jest.mock('mongodb', () => ({
+jest.unstable_mockModule('mongodb', () => ({
   // Mock MongoClient 建構函數
   MongoClient: jest.fn(() => mockClientFunctions),
-  
+
   // Mock ObjectId 建構函數，回傳可識別的測試物件
   ObjectId: jest.fn().mockImplementation(function(id) {
-    return { 
+    return {
       _isMockObjectId: true, // 標記此為 mock 物件，便於測試斷言
-      id: id || 'new_mocked_oid' 
+      id: id || 'new_mocked_oid'
     };
-  }),
+  })
 }));
 
 // === 測試模組載入 ===
-const request = require('supertest'); // HTTP 請求測試工具
-const serverModule = require('./server'); // 被測試的伺服器模組
+const request = (await import('supertest')).default; // HTTP 請求測試工具
+const serverModule = await import('./server.js'); // 被測試的伺服器模組
+const mongodbModule = await import('mongodb');
+const { ObjectId } = mongodbModule;
 const app = serverModule.app; // Express 應用實例
 
 // === 測試套件 ===
@@ -100,7 +103,6 @@ describe('API Endpoints', () => {
     });
     
     // 清除 ObjectId 建構函數的呼叫記錄
-    const { ObjectId } = require('mongodb');
     if (ObjectId.mockClear) {
       ObjectId.mockClear();
     }
@@ -156,8 +158,8 @@ describe('API Endpoints', () => {
       const newItemData = { name: 'New Test Item' };
       
       // 產生 mock 的 ObjectId 實例
-      const mockNewObjectId = require('mongodb').ObjectId();
-      require('mongodb').ObjectId.mockClear(); // 清除此次呼叫記錄
+      const mockNewObjectId = ObjectId();
+      ObjectId.mockClear(); // 清除此次呼叫記錄
 
       const mockInsertResult = { 
         acknowledged: true, 
@@ -194,7 +196,6 @@ describe('API Endpoints', () => {
         matchedCount: 1 
       };
       mockCollectionFunctions.updateOne.mockResolvedValue(mockUpdateResult);
-      const { ObjectId } = require('mongodb');
 
       const response = await request(app)
         .put(`/api/items/${itemId}`)
@@ -228,8 +229,6 @@ describe('API Endpoints', () => {
         deletedCount: 1 
       };
       mockCollectionFunctions.deleteOne.mockResolvedValue(mockDeleteResult);
-      const { ObjectId } = require('mongodb');
-
       const response = await request(app)
         .delete(`/api/items/${itemId}`);
 

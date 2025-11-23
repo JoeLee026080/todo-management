@@ -4,8 +4,8 @@
  * - 分離路由邏輯，提升代碼可維護性
  */
 
-const express = require('express');
-const { ObjectId } = require('mongodb');
+import express from 'express';
+import { ObjectId } from 'mongodb';
 const router = express.Router();
 
 /**
@@ -13,7 +13,7 @@ const router = express.Router();
  * @param {Object} db - MongoDB 資料庫實例
  * @returns {Router} Express 路由器
  */
-function setupItemsRoutes(db) {
+export default function setupItemsRoutes(db) {
   /**
    * @route GET /items
    * @desc 取得所有項目
@@ -65,5 +65,3 @@ function setupItemsRoutes(db) {
 
   return router;
 }
-
-module.exports = setupItemsRoutes;

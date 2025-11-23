@@ -6,14 +6,18 @@
  */
 
 // === 環境變數與套件載入 ===
-require('dotenv').config();
-const express = require('express');
-const { MongoClient, ObjectId } = require('mongodb');
-require('express-async-errors'); // 自動捕獲 async/await 中的錯誤，避免未處理的 Promise rejection
-const cors = require('cors');
+import 'dotenv/config';
+import express from 'express';
+import { MongoClient, ObjectId } from 'mongodb';
+import 'express-async-errors'; // 自動捕獲 async/await 中的錯誤，避免未處理的 Promise rejection
+import cors from 'cors';
+import { fileURLToPath } from 'url';
 
 // 路由模組
-const setupItemsRoutes = require('./routes/items');
+import setupItemsRoutes from './routes/items.js';
+
+// 取代 CommonJS 的 __filename，比對執行入口使用
+const __filename = fileURLToPath(import.meta.url);
 
 // === Express 應用程式初始化 ===
 const app = express();
@@ -112,7 +116,7 @@ async function closeServer(serverInstance) {
 }
 
 // 僅在直接執行此檔案時啟動伺服器（非 import/require 時）
-if (require.main === module) {
+if (process.argv[1] === __filename) {
   startServer();
 }
 
@@ -125,13 +129,14 @@ if (require.main === module) {
  * - ObjectId: MongoDB 物件 ID 轉換工具
  * - setupItemsRoutes: Items 路由設定函數（供其他模組使用）
  */
-module.exports = {
+export {
   app,
   connectToDatabase,
   setupRoutes,
   startServer,
   closeServer,
-  getDb: () => db,
   ObjectId,
   setupItemsRoutes
 };
+
+export const getDb = () => db;

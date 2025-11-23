@@ -1,9 +1,10 @@
 {
   "name": "node-input-demo",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
+  "main": "server.js",
   "scripts": {
-    "test": "jest",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "start": "node server.js"
   },
   "keywords": [],
