@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * API 端點整合測試
  * 測試目標：驗證所有 CRUD 操作的正確性
@@ -58,7 +59,7 @@ jest.unstable_mockModule('mongodb', () => ({
 
 // === 測試模組載入 ===
 const request = (await import('supertest')).default; // HTTP 請求測試工具
-const serverModule = await import('./server.js'); // 被測試的伺服器模組
+const serverModule = await import('./src/server.js'); // 被測試的伺服器模組
 const mongodbModule = await import('mongodb');
 const { ObjectId } = mongodbModule;
 const app = serverModule.app; // Express 應用實例

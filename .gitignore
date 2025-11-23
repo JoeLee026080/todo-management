@@ -6,3 +6,4 @@ yarn-debug.log*
 yarn-error.log*
 *.stackdump
 package-lock.json
+dist/
