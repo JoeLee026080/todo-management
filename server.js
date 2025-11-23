@@ -12,6 +12,9 @@ const { MongoClient, ObjectId } = require('mongodb');
 require('express-async-errors'); // 自動捕獲 async/await 中的錯誤，避免未處理的 Promise rejection
 const cors = require('cors');
 
+// 路由模組
+const setupItemsRoutes = require('./routes/items');
+
 // === Express 應用程式初始化 ===
 const app = express();
 
@@ -49,59 +52,12 @@ async function connectToDatabase() {
 
 /**
  * 設定 RESTful API 路由
- * - GET    /api/items     取得所有項目
- * - POST   /api/items     新增項目
- * - PUT    /api/items/:id 更新指定項目
- * - DELETE /api/items/:id 刪除指定項目
+ * 引入路由模組，分離路由邏輯
  */
 function setupRoutes() {
-  /**
-   * @route GET /api/items
-   * @returns {Array<Object>} 所有項目
-   */
-  app.get('/api/items', async (req, res) => {
-    const items = await db.collection('items').find().toArray();
-    res.json(items);
-  });
-
-  /**
-   * 新增單一項目
-   * @route POST /api/items
-   * @param {Object} req.body - 新增的項目資料
-   * @returns {Object} 插入結果（含 insertedId）
-   */
-  app.post('/api/items', async (req, res) => {
-    const result = await db.collection('items').insertOne(req.body);
-    res.json(result);
-  });
-
-  /**
-   * 更新指定項目
-   * @route PUT /api/items/:id
-   * @param {string} id - MongoDB ObjectId
-   * @param {Object} req.body - 更新資料
-   * @returns {Object} 更新結果（matchedCount, modifiedCount）
-   */
-  app.put('/api/items/:id', async (req, res) => {
-    const result = await db.collection('items').updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: { name: req.body.name } }
-    );
-    res.json(result);
-  });
-
-  /**
-   * 刪除指定項目
-   * @route DELETE /api/items/:id
-   * @param {string} id - MongoDB ObjectId
-   * @returns {Object} 刪除結果（deletedCount）
-   */
-  app.delete('/api/items/:id', async (req, res) => {
-    const result = await db.collection('items').deleteOne({
-      _id: new ObjectId(req.params.id)
-    });
-    res.json(result);
-  });
+  // 設定 Items API 路由
+  const itemsRouter = setupItemsRoutes(db);
+  app.use('/api/items', itemsRouter);
 
   /**
    * 全域錯誤處理
@@ -167,6 +123,7 @@ if (require.main === module) {
  * - 生命週期函數：啟動、關閉伺服器
  * - getDb: 取得資料庫實例（測試時可替換為 mock）
  * - ObjectId: MongoDB 物件 ID 轉換工具
+ * - setupItemsRoutes: Items 路由設定函數（供其他模組使用）
  */
 module.exports = {
   app,
@@ -175,5 +132,6 @@ module.exports = {
   startServer,
   closeServer,
   getDb: () => db,
-  ObjectId
+  ObjectId,
+  setupItemsRoutes
 };
