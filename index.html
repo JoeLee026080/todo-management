@@ -1,0 +1,102 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>超簡易 CRUD</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <style>
+    body { font-family: Arial; max-width: 500px; margin: 20px auto; }
+    input { padding: 8px; width: 200px; margin-right: 10px; }
+    button { padding: 8px 12px; margin: 5px; }
+    li { margin: 10px 0; display: flex; align-items: center; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>📝 極簡 CRUD</h1>
+    <input v-model="newItem" placeholder="輸入新項目">
+    <button @click="addItem">新增</button>
+    
+    <ul>
+      <li v-for="item in items" :key="item._id">
+        <div v-if="editingId === item._id">
+          <input v-model="editedName" />
+          <button @click="updateItem(item._id)">儲存</button>
+          <button @click="cancelEdit">取消</button>
+        </div>
+        <div v-else>
+          {{ item.name }}
+          <button @click="startEdit(item)">編輯</button>
+          <button @click="deleteItem(item._id)">刪除</button>
+        </div>
+      </li>
+    </ul>
+    
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted } = Vue;
+    
+    createApp({
+      setup() {
+        const newItem = ref('');
+        const items = ref([]);
+        
+        // 讀取所有項目
+        const fetchItems = async () => {
+          const res = await axios.get('http://localhost:3000/api/items');
+          items.value = res.data;
+        };
+        
+        // 新增項目
+        const addItem = async () => {
+          if (!newItem.value.trim()) return;
+          await axios.post('http://localhost:3000/api/items', {
+            name: newItem.value
+          });
+          newItem.value = '';
+          fetchItems();
+        };
+        const editingId = ref(null);
+        const editedName = ref('');
+
+        const startEdit = (item) => {
+          editingId.value = item._id;
+          editedName.value = item.name;
+        };
+
+        const cancelEdit = () => {
+          editingId.value = null;
+          editedName.value = '';
+        };
+
+        const updateItem = async (id) => {
+          if (!editedName.value.trim()) return;
+          await axios.put(`http://localhost:3000/api/items/${id}`, {
+            name: editedName.value
+          });
+          editingId.value = null;
+          editedName.value = '';
+          fetchItems();
+        };
+
+        // 刪除項目
+        const deleteItem = async (id) => {
+            const response = await axios.delete(`http://localhost:3000/api/items/${id}`);
+            fetchItems();
+        };
+        
+        // 初始化載入
+        onMounted(fetchItems);
+        
+        return { 
+          newItem, items, addItem, deleteItem,
+          editingId, editedName, startEdit, cancelEdit, updateItem
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
+
