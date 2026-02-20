@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * API 端點整合測試
  * 測試目標：驗證所有 CRUD 操作的正確性
@@ -14,11 +13,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@je
  * 模擬資料庫集合的基本 CRUD 操作
  */
 const mockCollectionFunctions = {
-  find: jest.fn().mockReturnThis(), // 支援鏈式調用：find().toArray()
-  toArray: jest.fn(),
-  insertOne: jest.fn(),
-  updateOne: jest.fn(),
-  deleteOne: jest.fn(),
+  find: jest.fn<() => any>().mockReturnThis(), // 支援鏈式調用：find().toArray()
+  toArray: jest.fn<() => Promise<any>>(),
+  insertOne: jest.fn<() => Promise<any>>(),
+  updateOne: jest.fn<() => Promise<any>>(),
+  deleteOne: jest.fn<() => Promise<any>>(),
 };
 
 /**
@@ -34,9 +33,9 @@ const mockDbFunctions = {
  * 模擬資料庫連線與生命週期管理
  */
 const mockClientFunctions = {
-  connect: jest.fn().mockResolvedValue(true), // 模擬成功連線
+  connect: jest.fn<() => Promise<boolean>>().mockResolvedValue(true), // 模擬成功連線
   db: jest.fn(() => mockDbFunctions), // 回傳 mock 的資料庫實例
-  close: jest.fn().mockResolvedValue(undefined) // 模擬優雅關閉連線
+  close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined) // 模擬優雅關閉連線
 };
 
 // === Jest Mock 宣告 ===
@@ -61,7 +60,7 @@ jest.unstable_mockModule('mongodb', () => ({
 const request = (await import('supertest')).default; // HTTP 請求測試工具
 const serverModule = await import('./src/server.js'); // 被測試的伺服器模組
 const mongodbModule = await import('mongodb');
-const { ObjectId } = mongodbModule;
+const ObjectId = jest.mocked(mongodbModule.ObjectId);
 const app = serverModule.app; // Express 應用實例
 
 // === 測試套件 ===
@@ -153,7 +152,7 @@ describe('API Endpoints', () => {
       const newItemData = { name: 'New Test Item' };
       
       // 產生 mock 的 ObjectId 實例
-      const mockNewObjectId = ObjectId();
+      const mockNewObjectId = new ObjectId();
       ObjectId.mockClear(); // 清除此次呼叫記錄
 
       const mockInsertResult = { 
