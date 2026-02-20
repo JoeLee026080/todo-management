@@ -80,9 +80,7 @@ describe('API Endpoints', () => {
    * 關閉 mock 的資料庫連線
    */
   afterAll(async () => {
-    if (mockClientFunctions.close.mock) {
-      await mockClientFunctions.close();
-    }
+    await mockClientFunctions.close();
   });
 
   /**
@@ -91,23 +89,19 @@ describe('API Endpoints', () => {
    */
   beforeEach(() => {
     // 清除 Client 層級的 mock 記錄
-    if (mockClientFunctions.connect.mockClear) mockClientFunctions.connect.mockClear();
-    if (mockClientFunctions.db.mockClear) mockClientFunctions.db.mockClear();
-    if (mockClientFunctions.close.mockClear) mockClientFunctions.close.mockClear();
-    
+    mockClientFunctions.connect.mockClear();
+    mockClientFunctions.db.mockClear();
+    mockClientFunctions.close.mockClear();
+
     // 清除 Database 層級的 mock 記錄
-    if (mockDbFunctions.collection.mockClear) mockDbFunctions.collection.mockClear();
-    
+    mockDbFunctions.collection.mockClear();
+
     // 清除 Collection 層級的所有 mock 記錄
-    Object.values(mockCollectionFunctions).forEach(mockFn => {
-      if (mockFn.mockClear) mockFn.mockClear();
-    });
-    
+    Object.values(mockCollectionFunctions).forEach(mockFn => mockFn.mockClear());
+
     // 清除 ObjectId 建構函數的呼叫記錄
-    if (ObjectId.mockClear) {
-      ObjectId.mockClear();
-    }
-    
+    ObjectId.mockClear();
+
     // 重設鏈式調用的回傳值
     mockCollectionFunctions.find.mockReturnThis();
   });

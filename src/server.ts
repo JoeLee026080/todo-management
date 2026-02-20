@@ -8,7 +8,7 @@
 // === 環境變數與套件載入 ===
 import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
-import { MongoClient, ObjectId, Db } from 'mongodb';
+import { MongoClient, Db } from 'mongodb';
 import 'express-async-errors'; // 自動捕獲 async/await 中的錯誤，避免未處理的 Promise rejection
 import cors from 'cors';
 import { fileURLToPath } from 'url';
@@ -111,22 +111,6 @@ async function startServer(port = Number(process.env.PORT) || 3000): Promise<Ser
   return null;
 }
 
-/**
- * 關閉伺服器
- * 確保所有連線正確釋放，避免資源洩漏
- * @param {Server | null} serverInstance - Express 伺服器實例
- */
-async function closeServer(serverInstance?: Server | null): Promise<void> {
-  // 關閉 HTTP 伺服器
-  if (serverInstance) {
-    await new Promise<void>(resolve => serverInstance.close(() => resolve()));
-  }
-
-  // 關閉 MongoDB 連線
-  await client.close();
-  routesInitialized = false;
-}
-
 // 僅在直接執行此檔案時啟動伺服器（非 import/require 時）
 if (process.argv[1] === __filename) {
   void startServer();
@@ -136,19 +120,11 @@ if (process.argv[1] === __filename) {
 /**
  * 導出項目：
  * - app: Express 實例，供測試用
- * - 生命週期函數：啟動、關閉伺服器
- * - getDb: 取得資料庫實例（測試時可替換為 mock）
- * - ObjectId: MongoDB 物件 ID 轉換工具
- * - setupItemsRoutes: Items 路由設定函數（供其他模組使用）
+ * - connectToDatabase: 資料庫連線函數
+ * - setupRoutes: 路由設定函數
  */
 export {
   app,
   connectToDatabase,
-  setupRoutes,
-  startServer,
-  closeServer,
-  ObjectId,
-  setupItemsRoutes
+  setupRoutes
 };
-
-export const getDb = (): Db | undefined => db;
