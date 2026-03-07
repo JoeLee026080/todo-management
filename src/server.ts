@@ -16,6 +16,8 @@ import type { Server } from 'http';
 
 // 路由模組
 import setupItemsRoutes from './routes/items.js';
+import setupAuthRoutes from './routes/auth.js';
+import { authenticateToken } from './middleware/auth.js';
 
 // 取代 CommonJS 的 __filename，比對執行入口使用
 const __filename = fileURLToPath(import.meta.url);
@@ -70,9 +72,13 @@ function setupRoutes(): void {
     throw new Error('資料庫尚未連線，無法設定路由');
   }
 
-  // 設定 Items API 路由
+  // 認證路由（公開，不需要 Token）
+  const authRouter = setupAuthRoutes();
+  app.use('/api/auth', authRouter);
+
+  // 設定 Items API 路由（受 JWT 保護）
   const itemsRouter = setupItemsRoutes(db);
-  app.use('/api/items', itemsRouter);
+  app.use('/api/items', authenticateToken, itemsRouter);
 
   /**
    * 全域錯誤處理

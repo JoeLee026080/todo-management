@@ -63,6 +63,9 @@ const mongodbModule = await import('mongodb');
 const ObjectId = jest.mocked(mongodbModule.ObjectId);
 const app = serverModule.app; // Express 應用實例
 
+// JWT Token（登入後備用）
+let authToken: string;
+
 // === 測試套件 ===
 describe('API Endpoints', () => {
   /**
@@ -72,6 +75,12 @@ describe('API Endpoints', () => {
   beforeAll(async () => {
     await serverModule.connectToDatabase(); // 使用 mock 的 MongoClient
     serverModule.setupRoutes(); // 註冊所有 API 路由
+
+    // 登入取得 Token，往後存取受保護的路由時使用
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'admin', password: 'admin123' });
+    authToken = (loginRes.body as { token: string }).token;
   });
 
   /**
@@ -114,7 +123,9 @@ describe('API Endpoints', () => {
       const mockItems = [{ _id: '1', name: 'Test Item 1' }];
       mockCollectionFunctions.toArray.mockResolvedValue(mockItems);
 
-      const response = await request(app).get('/api/items');
+      const response = await request(app)
+        .get('/api/items')
+        .set('Authorization', `Bearer ${authToken}`);
 
       // 驗證 HTTP 回應
       expect(response.statusCode).toBe(200);
@@ -132,7 +143,9 @@ describe('API Endpoints', () => {
     it('當獲取項目出錯時應處理錯誤', async () => {
       mockCollectionFunctions.toArray.mockRejectedValue(new Error('Database error'));
 
-      const response = await request(app).get('/api/items');
+      const response = await request(app)
+        .get('/api/items')
+        .set('Authorization', `Bearer ${authToken}`);
 
       // 驗證錯誤處理機制
       expect(response.statusCode).toBe(500);
@@ -163,6 +176,7 @@ describe('API Endpoints', () => {
 
       const response = await request(app)
         .post('/api/items')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(newItemData);
 
       // 驗證新增成功的回應結構
@@ -193,6 +207,7 @@ describe('API Endpoints', () => {
 
       const response = await request(app)
         .put(`/api/items/${itemId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(itemUpdateData);
 
       // 驗證更新成功的回應
@@ -224,7 +239,9 @@ describe('API Endpoints', () => {
       };
       mockCollectionFunctions.deleteOne.mockResolvedValue(mockDeleteResult);
       const response = await request(app)
-        .delete(`/api/items/${itemId}`);
+        .delete(`/api/items/${itemId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
 
       // 驗證刪除成功的回應
       expect(response.statusCode).toBe(200);

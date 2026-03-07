@@ -1,65 +1,338 @@
-<!-- public/index.html -->
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-  <title>超簡易 CRUD</title>
+  <meta charset="UTF-8" />
+  <title>JWT CRUD 練習</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <style>
-    body { font-family: Arial; max-width: 500px; margin: 20px auto; }
-    input { padding: 8px; width: 200px; margin-right: 10px; }
-    button { padding: 8px 12px; margin: 5px; }
-    li { margin: 10px 0; display: flex; align-items: center; }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    /* ── 卡片通用 ── */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.1);
+      padding: 32px;
+      max-width: 480px;
+      margin: 60px auto;
+    }
+
+    h1 { margin: 0 0 24px; font-size: 1.5rem; color: #333; }
+    h2 { margin: 0 0 20px; font-size: 1.1rem; color: #555; }
+
+    /* ── 輸入框 ── */
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: .85rem; color: #666; margin-bottom: 6px; }
+    .field input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .field input:focus { border-color: #4f8ef7; }
+
+    /* ── 按鈕 ── */
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: .9rem;
+      transition: opacity .15s;
+    }
+    button:hover { opacity: .85; }
+
+    .btn-primary   { background: #4f8ef7; color: #fff; }
+    .btn-success   { background: #34a853; color: #fff; }
+    .btn-warning   { background: #fbbc04; color: #333; }
+    .btn-danger    { background: #ea4335; color: #fff; }
+    .btn-ghost     { background: #e8eaed; color: #333; }
+    .btn-block     { width: 100%; padding: 11px; font-size: 1rem; margin-top: 4px; }
+
+    /* ── 錯誤訊息 ── */
+    .error-msg {
+      background: #fdecea;
+      color: #c62828;
+      border: 1px solid #f5c6cb;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: .9rem;
+    }
+
+    /* ── 頂部 bar（已登入） ── */
+    .topbar {
+      max-width: 480px;
+      margin: 0 auto 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .topbar .user-info { font-size: .9rem; color: #555; }
+    .topbar .user-info strong { color: #4f8ef7; }
+
+    /* ── 新增列 ── */
+    .add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .add-row input {
+      flex: 1;
+      padding: 9px 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+    }
+    .add-row input:focus { border-color: #4f8ef7; }
+
+    /* ── 項目列表 ── */
+    ul { list-style: none; padding: 0; margin: 0; }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    li:last-child { border-bottom: none; }
+    .item-name { flex: 1; font-size: 1rem; color: #333; }
+    .edit-input {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid #4f8ef7;
+      border-radius: 6px;
+      font-size: 1rem;
+      outline: none;
+    }
+    .empty-hint { color: #aaa; font-size: .9rem; text-align: center; padding: 20px 0; }
+
+    /* ── Token 展示區 ── */
+    .token-box {
+      margin-top: 20px;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .token-box summary {
+      cursor: pointer;
+      font-size: .8rem;
+      color: #888;
+      user-select: none;
+    }
+    .token-value {
+      margin-top: 8px;
+      font-size: .72rem;
+      word-break: break-all;
+      color: #555;
+      font-family: monospace;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
   <div id="app">
-    <h1>📝 極簡 CRUD</h1>
-    <input v-model="newItem" placeholder="輸入新項目">
-    <button @click="addItem">新增</button>
-    
-    <ul>
-      <li v-for="item in items" :key="item._id">
-        <div v-if="editingId === item._id">
-          <input v-model="editedName" />
-          <button @click="updateItem(item._id)">儲存</button>
-          <button @click="cancelEdit">取消</button>
+
+    <!-- ══════════════════════════════════
+         登入畫面
+    ══════════════════════════════════ -->
+    <div v-if="!token" class="card">
+      <h1>🔐 管理員登入</h1>
+
+      <div v-if="loginError" class="error-msg">{{ loginError }}</div>
+
+      <div class="field">
+        <label>帳號</label>
+        <input
+          v-model="loginForm.username"
+          placeholder="admin"
+          @keyup.enter="login"
+        />
+      </div>
+      <div class="field">
+        <label>密碼</label>
+        <input
+          type="password"
+          v-model="loginForm.password"
+          placeholder="••••••••"
+          @keyup.enter="login"
+        />
+      </div>
+
+      <button class="btn-primary btn-block" :disabled="loginLoading" @click="login">
+        {{ loginLoading ? '登入中…' : '登入' }}
+      </button>
+
+      <!-- JWT Token 展示（學習用） -->
+      <div v-if="lastToken" class="token-box">
+        <details>
+          <summary>🔑 JWT Token（點擊展開）</summary>
+          <div class="token-value">{{ lastToken }}</div>
+        </details>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         已登入：CRUD 主畫面
+    ══════════════════════════════════ -->
+    <template v-else>
+      <div class="topbar">
+        <span class="user-info">已登入為 <strong>{{ currentUser }}</strong></span>
+        <button class="btn-ghost" @click="logout">登出</button>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h1>📝 項目管理</h1>
+
+        <div v-if="itemError" class="error-msg">{{ itemError }}</div>
+
+        <!-- 新增列 -->
+        <div class="add-row">
+          <input
+            v-model="newItem"
+            placeholder="輸入新項目名稱…"
+            @keyup.enter="addItem"
+          />
+          <button class="btn-primary" @click="addItem">新增</button>
         </div>
-        <div v-else>
-          {{ item.name }}
-          <button @click="startEdit(item)">編輯</button>
-          <button @click="deleteItem(item._id)">刪除</button>
+
+        <!-- 列表 -->
+        <ul>
+          <li v-for="item in items" :key="item._id">
+            <!-- 編輯模式 -->
+            <template v-if="editingId === item._id">
+              <input class="edit-input" v-model="editedName" @keyup.enter="updateItem(item._id)" @keyup.esc="cancelEdit" />
+              <button class="btn-success" @click="updateItem(item._id)">儲存</button>
+              <button class="btn-ghost"   @click="cancelEdit">取消</button>
+            </template>
+            <!-- 一般模式 -->
+            <template v-else>
+              <span class="item-name">{{ item.name }}</span>
+              <button class="btn-warning" @click="startEdit(item)">編輯</button>
+              <button class="btn-danger"  @click="deleteItem(item._id)">刪除</button>
+            </template>
+          </li>
+        </ul>
+        <p v-if="items.length === 0" class="empty-hint">尚無項目，請新增一筆吧！</p>
+
+        <!-- Token 展示（學習用） -->
+        <div class="token-box">
+          <details>
+            <summary>🔑 目前的 JWT Token（學習用展示）</summary>
+            <div class="token-value">{{ token }}</div>
+          </details>
         </div>
-      </li>
-    </ul>
-    
-  </div>
+      </div>
+    </template>
+
+  </div><!-- #app -->
 
   <script>
-    const { createApp, ref, onMounted } = Vue;
-    
+    const { createApp, ref, computed, onMounted } = Vue;
+    const API = 'http://localhost:3000/api';
+
     createApp({
       setup() {
-        const newItem = ref('');
-        const items = ref([]);
-        
-        // 讀取所有項目
-        const fetchItems = async () => {
-          const res = await axios.get('http://localhost:3000/api/items');
-          items.value = res.data;
+
+        // ── 認證狀態 ──
+        const token      = ref(localStorage.getItem('jwt_token') || '');
+        const lastToken  = ref(''); // 登入成功後暫存，供 Token 展示區顯示
+        const loginForm  = ref({ username: '', password: '' });
+        const loginError = ref('');
+        const loginLoading = ref(false);
+
+        // 從 JWT payload 取使用者名稱（base64 decode，不驗簽，純展示用）
+        const currentUser = computed(() => {
+          try {
+            const payload = JSON.parse(atob(token.value.split('.')[1]));
+            return payload.username ?? '未知';
+          } catch { return '未知'; }
+        });
+
+        // 建立帶 Authorization header 的 axios 實例
+        const authAxios = () => axios.create({
+          headers: { Authorization: `Bearer ${token.value}` }
+        });
+
+        // ── 登入 ──
+        const login = async () => {
+          loginError.value = '';
+          if (!loginForm.value.username || !loginForm.value.password) {
+            loginError.value = '請輸入帳號與密碼';
+            return;
+          }
+          loginLoading.value = true;
+          try {
+            const res = await axios.post(`${API}/auth/login`, loginForm.value);
+            token.value = res.data.token;
+            lastToken.value = res.data.token;
+            localStorage.setItem('jwt_token', token.value);
+            loginForm.value = { username: '', password: '' };
+            await fetchItems();
+          } catch (err) {
+            const status = err?.response?.status;
+            if (status === 401) loginError.value = '帳號或密碼錯誤';
+            else if (status === 400) loginError.value = '請提供帳號與密碼';
+            else loginError.value = '登入失敗，請稍後再試';
+          } finally {
+            loginLoading.value = false;
+          }
         };
-        
-        // 新增項目
-        const addItem = async () => {
-          if (!newItem.value.trim()) return;
-          await axios.post('http://localhost:3000/api/items', {
-            name: newItem.value
-          });
-          newItem.value = '';
-          fetchItems();
+
+        // ── 登出 ──
+        const logout = () => {
+          token.value = '';
+          lastToken.value = '';
+          localStorage.removeItem('jwt_token');
+          items.value = [];
         };
+
+        // ── 項目 CRUD ──
+        const items     = ref([]);
+        const newItem   = ref('');
+        const itemError = ref('');
         const editingId = ref(null);
         const editedName = ref('');
+
+        const handleAuthError = (err) => {
+          if (err?.response?.status === 401 || err?.response?.status === 403) {
+            itemError.value = 'Token 已過期，請重新登入';
+            logout();
+          } else {
+            itemError.value = err?.response?.data?.error || '操作失敗';
+          }
+        };
+
+        const fetchItems = async () => {
+          itemError.value = '';
+          try {
+            const res = await authAxios().get(`${API}/items`);
+            items.value = res.data;
+          } catch (err) { handleAuthError(err); }
+        };
+
+        const addItem = async () => {
+          if (!newItem.value.trim()) return;
+          try {
+            await authAxios().post(`${API}/items`, { name: newItem.value.trim() });
+            newItem.value = '';
+            await fetchItems();
+          } catch (err) { handleAuthError(err); }
+        };
 
         const startEdit = (item) => {
           editingId.value = item._id;
@@ -73,26 +346,27 @@
 
         const updateItem = async (id) => {
           if (!editedName.value.trim()) return;
-          await axios.put(`http://localhost:3000/api/items/${id}`, {
-            name: editedName.value
-          });
-          editingId.value = null;
-          editedName.value = '';
-          fetchItems();
+          try {
+            await authAxios().put(`${API}/items/${id}`, { name: editedName.value.trim() });
+            cancelEdit();
+            await fetchItems();
+          } catch (err) { handleAuthError(err); }
         };
 
-        // 刪除項目
         const deleteItem = async (id) => {
-            const response = await axios.delete(`http://localhost:3000/api/items/${id}`);
-            fetchItems();
+          try {
+            await authAxios().delete(`${API}/items/${id}`);
+            await fetchItems();
+          } catch (err) { handleAuthError(err); }
         };
-        
-        // 初始化載入
-        onMounted(fetchItems);
-        
-        return { 
-          newItem, items, addItem, deleteItem,
-          editingId, editedName, startEdit, cancelEdit, updateItem
+
+        // 若 localStorage 已有 token，直接載入資料
+        onMounted(() => { if (token.value) fetchItems(); });
+
+        return {
+          token, lastToken, loginForm, loginError, loginLoading, currentUser, login, logout,
+          items, newItem, itemError, addItem,
+          editingId, editedName, startEdit, cancelEdit, updateItem, deleteItem,
         };
       }
     }).mount('#app');

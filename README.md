@@ -6,7 +6,7 @@
 
 1. 複製此專案倉儲到本地端  
 2. 執行 `npm install` 來安裝所需套件  
-3. 將 `.env.example` 檔案複製並另存為 `.env`，然後填入你的 MongoDB 連線字串  
+3. 將 `.env.example` 檔案複製並另存為 `.env`，然後填入你的 MongoDB 連線字串與 JWT Secret  
 4. 執行 `npm start` 來啟動應用程式  
 
 ## 環境變數設定
@@ -14,6 +14,7 @@
 請在 `.env` 檔案中設定以下環境變數：
 
 - `MONGODB_URI`: MongoDB 資料庫的連線字串  
+- `JWT_SECRET`: 用於簽發與驗證 JWT Token 的密鑰  
 
 ## 功能特色
 
