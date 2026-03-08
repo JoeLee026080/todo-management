@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * API 端點整合測試
  * 測試目標：驗證所有 CRUD 操作的正確性
@@ -14,11 +13,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@je
  * 模擬資料庫集合的基本 CRUD 操作
  */
 const mockCollectionFunctions = {
-  find: jest.fn().mockReturnThis(), // 支援鏈式調用：find().toArray()
-  toArray: jest.fn(),
-  insertOne: jest.fn(),
-  updateOne: jest.fn(),
-  deleteOne: jest.fn(),
+  find: jest.fn<() => any>().mockReturnThis(), // 支援鏈式調用：find().toArray()
+  toArray: jest.fn<() => Promise<any>>(),
+  insertOne: jest.fn<() => Promise<any>>(),
+  updateOne: jest.fn<() => Promise<any>>(),
+  deleteOne: jest.fn<() => Promise<any>>(),
 };
 
 /**
@@ -34,9 +33,9 @@ const mockDbFunctions = {
  * 模擬資料庫連線與生命週期管理
  */
 const mockClientFunctions = {
-  connect: jest.fn().mockResolvedValue(true), // 模擬成功連線
+  connect: jest.fn<() => Promise<boolean>>().mockResolvedValue(true), // 模擬成功連線
   db: jest.fn(() => mockDbFunctions), // 回傳 mock 的資料庫實例
-  close: jest.fn().mockResolvedValue(undefined) // 模擬優雅關閉連線
+  close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined) // 模擬優雅關閉連線
 };
 
 // === Jest Mock 宣告 ===
@@ -61,8 +60,11 @@ jest.unstable_mockModule('mongodb', () => ({
 const request = (await import('supertest')).default; // HTTP 請求測試工具
 const serverModule = await import('./src/server.js'); // 被測試的伺服器模組
 const mongodbModule = await import('mongodb');
-const { ObjectId } = mongodbModule;
+const ObjectId = jest.mocked(mongodbModule.ObjectId);
 const app = serverModule.app; // Express 應用實例
+
+// JWT Token（登入後備用）
+let authToken: string;
 
 // === 測試套件 ===
 describe('API Endpoints', () => {
@@ -73,6 +75,12 @@ describe('API Endpoints', () => {
   beforeAll(async () => {
     await serverModule.connectToDatabase(); // 使用 mock 的 MongoClient
     serverModule.setupRoutes(); // 註冊所有 API 路由
+
+    // 登入取得 Token，往後存取受保護的路由時使用
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'admin', password: 'admin123' });
+    authToken = (loginRes.body as { token: string }).token;
   });
 
   /**
@@ -80,9 +88,7 @@ describe('API Endpoints', () => {
    * 關閉 mock 的資料庫連線
    */
   afterAll(async () => {
-    if (mockClientFunctions.close.mock) {
-      await mockClientFunctions.close();
-    }
+    await mockClientFunctions.close();
   });
 
   /**
@@ -91,23 +97,19 @@ describe('API Endpoints', () => {
    */
   beforeEach(() => {
     // 清除 Client 層級的 mock 記錄
-    if (mockClientFunctions.connect.mockClear) mockClientFunctions.connect.mockClear();
-    if (mockClientFunctions.db.mockClear) mockClientFunctions.db.mockClear();
-    if (mockClientFunctions.close.mockClear) mockClientFunctions.close.mockClear();
-    
+    mockClientFunctions.connect.mockClear();
+    mockClientFunctions.db.mockClear();
+    mockClientFunctions.close.mockClear();
+
     // 清除 Database 層級的 mock 記錄
-    if (mockDbFunctions.collection.mockClear) mockDbFunctions.collection.mockClear();
-    
+    mockDbFunctions.collection.mockClear();
+
     // 清除 Collection 層級的所有 mock 記錄
-    Object.values(mockCollectionFunctions).forEach(mockFn => {
-      if (mockFn.mockClear) mockFn.mockClear();
-    });
-    
+    Object.values(mockCollectionFunctions).forEach(mockFn => mockFn.mockClear());
+
     // 清除 ObjectId 建構函數的呼叫記錄
-    if (ObjectId.mockClear) {
-      ObjectId.mockClear();
-    }
-    
+    ObjectId.mockClear();
+
     // 重設鏈式調用的回傳值
     mockCollectionFunctions.find.mockReturnThis();
   });
@@ -121,7 +123,9 @@ describe('API Endpoints', () => {
       const mockItems = [{ _id: '1', name: 'Test Item 1' }];
       mockCollectionFunctions.toArray.mockResolvedValue(mockItems);
 
-      const response = await request(app).get('/api/items');
+      const response = await request(app)
+        .get('/api/items')
+        .set('Authorization', `Bearer ${authToken}`);
 
       // 驗證 HTTP 回應
       expect(response.statusCode).toBe(200);
@@ -139,7 +143,9 @@ describe('API Endpoints', () => {
     it('當獲取項目出錯時應處理錯誤', async () => {
       mockCollectionFunctions.toArray.mockRejectedValue(new Error('Database error'));
 
-      const response = await request(app).get('/api/items');
+      const response = await request(app)
+        .get('/api/items')
+        .set('Authorization', `Bearer ${authToken}`);
 
       // 驗證錯誤處理機制
       expect(response.statusCode).toBe(500);
@@ -159,7 +165,7 @@ describe('API Endpoints', () => {
       const newItemData = { name: 'New Test Item' };
       
       // 產生 mock 的 ObjectId 實例
-      const mockNewObjectId = ObjectId();
+      const mockNewObjectId = new ObjectId();
       ObjectId.mockClear(); // 清除此次呼叫記錄
 
       const mockInsertResult = { 
@@ -170,6 +176,7 @@ describe('API Endpoints', () => {
 
       const response = await request(app)
         .post('/api/items')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(newItemData);
 
       // 驗證新增成功的回應結構
@@ -200,6 +207,7 @@ describe('API Endpoints', () => {
 
       const response = await request(app)
         .put(`/api/items/${itemId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(itemUpdateData);
 
       // 驗證更新成功的回應
@@ -231,7 +239,9 @@ describe('API Endpoints', () => {
       };
       mockCollectionFunctions.deleteOne.mockResolvedValue(mockDeleteResult);
       const response = await request(app)
-        .delete(`/api/items/${itemId}`);
+        .delete(`/api/items/${itemId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
 
       // 驗證刪除成功的回應
       expect(response.statusCode).toBe(200);
